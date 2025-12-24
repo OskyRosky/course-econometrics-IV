@@ -1,0 +1,289 @@
+---
+title: "Regresión múltiple en  R"
+author: "OCM"
+
+
+output: 
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: false
+    number_sections: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+
+suppressWarnings(library(MASS)) 
+suppressWarnings(library(stats)) 
+suppressWarnings(library(psych)) 
+
+
+
+```
+
+# Regresión lineal múltiple.
+
+El objetivo es mostrar los principales comandos en R para generar un regresión lineal múlriple:
+
+
+De igual forma se verán ciertas etapas de análisis que componen a estas variantes de la regresión, aunque serán abordadas de forma completa en el análsis de la regresión múltiple.
+
+## Datos
+
+Volvemos a trabjar con el set de datos de Boston del paquete MASS recoge la mediana del valor de la vivienda en 506 áreas residenciales de Boston. Junto con el precio, se han registrado 13 variables adicionales.
+
+```{r}
+tail(Boston)
+```
+
+- crim: ratio de criminalidad per cápita de cada ciudad.
+- zn: Proporción de zonas residenciales con edificaciones de más de 25.000 pies cuadrados.
+- indus: proporción de zona industrializada.
+- chas: Si hay río en la ciudad (= 1 si hay río; 0 no hay).
+- nox: Concentración de óxidos de nitrógeno (partes per 10 millón).
+- rm: promedio de habitaciones por vivienda.
+- age: Proporción de viviendas ocupadas por el propietario construidas antes de 1940.
+- dis: Media ponderada de la distancias a cinco centros de empleo de Boston.
+- rad: Índice de accesibilidad a las autopistas radiales.
+- tax: Tasa de impuesto a la propiedad en unidades de $10,000.
+- ptratio: ratio de alumnos/profesor por ciudad.
+- black: 1000(Bk - 0.63)^2 donde Bk es la proporción de gente de color por ciudad.
+- lstat: porcentaje de población en condición de pobreza.
+- medv: Valor mediano de las casas ocupadas por el dueño en unidades de $1000s.
+
+## Selección de las variables y la relación conceptual de la RLM
+
+- ¿Qué es lo que queremos estudiar?
+- ¿Cuál sería nuestra variable dependiente?
+- ¿Cuáles serían las independientes?
+- ¿El análisis lo queremos hacer de forma "conceptual" o introducciendo las variables "a la fuerza" ?
+
+Una vez se tenga claro: *Objetivo de estudio*, *lo que se espera del RLM*, *Unidad de estduio*, *Variables*,  *Variable respuesta (dependiente)* y 
+*variables predictores (independientes)*, prodíamos proceder así con la estimación del modelo de la RLM.
+
+## Condiciones o supuestos de la Regresión lineal múltiple.
+
+Las etapas de un modelo por RLM, son:
+
+1. Relación conceptual entre las variables.
+2. Estimación de la recta de mejor ajuste (modelo de regresión).
+3. Diagnóstico del modelo de regresión.
+4. Medidas remediales.
+5. Estadísticas de bondad y ajuste.
+6. Inferencia y prueba de hipótesis de los coeficientes del modelo.
+
+Para un modelo de RLM, normalmente se debe cumplir que que sus variables "deberian" distribuirse de forma norma, la linealidad entre las variables, normalidad de los residuos, la variancia constante en los residuos, la ausencia de la multicolinealidad,  y pues que haya una relación correcta entre estas.
+
+Dedicaremos un capítulo para realizar los diagnósticos de un modelo por RLM, pero veremos algunas recomendaciones que se deerían de tomar en cuenta.
+
+### Distribucción de las variables de análisis
+
+Veamos como se distruyuen las variables del archivo Boston
+
+```{r}
+multi.hist(x = Boston[,1:14], dcol = c("blue","red"), dlty = c("dotted", "solid"),
+           main = "")
+
+multi.hist(x = Boston[,5:9], dcol = c("blue","red"), dlty = c("dotted", "solid"),
+           main = "")
+
+multi.hist(x = Boston[,10:14], dcol = c("blue","red"),
+           dlty = c("dotted", "solid"), main = "")
+```
+
+¿Las variables se suelen distribuir de forma normal?
+
+Y si, trabajar con temas de ingreso y pobresa, produce este tipo de distribuciones.
+
+### Linealidad con respeto a la variable dependiente.
+
+Veamos un poco algunas comparaciones entre la variable dependiente y otras variables:
+
+```{r}
+attach(Boston)
+plot(x = lstat, y = medv, main = "medv vs lstat", pch = 20, col = "grey30")
+
+
+plot(x = lstat, y = age, main = "medv vs lstat", pch = 20, col = "grey30")
+
+
+plot(x = lstat, y = crim, main = "medv vs lstat", pch = 20, col = "grey30")
+
+
+plot(x = lstat, y = tax, main = "medv vs lstat", pch = 20, col = "grey30")
+
+
+```
+
+¿ Poseemos algún tipo de linealidad?
+
+Estimaremos un modelo de regresión múltiple, sin embargo, desde la etapa previa podemos corroborar que, efectivamente, **no** se están sosteniendo 
+las condiciones óptimas para estimar una RLM.
+
+¿Esto nos debería siempre detener?
+
+## Estimación de los coeficientes de la RLM.
+
+Para obener los coeficientes betas de la regresión, utilizamos la función **lm()**
+
+Se desea generar un modelo que permita explicar el precio de la vivienda de una población empleando para ello cualquiera de las variables disponibles en el dataset Boston y que resulten útiles en el modelo.
+
+R permite crear un modelo con todas las variables incluidas en un data.frame de la siguiente forma:
+
+```{r}
+modelo_multiple <- lm(formula = medv ~ ., data = Boston)
+modelo_multiple
+# También se pueden especificar una a una 
+
+```
+
+Mejor si utilizamos la función *summary*
+
+```{r}
+summary(modelo_multiple)
+```
+
+
+**IMPORTANTE** : podemos utilizar la función summary, y de ahí utilizar lsa otras funcionalidades que se deriban de la función *summary*
+
+```{r}
+names(summary(modelo_multiple))
+```
+
+Podemos a partir de las distintitas composiciones del *summary* extraer los coeficientes,los residuos, los valores del coeficiente de determinación, etc.
+
+Extraigamos los coeficientes :
+
+```{r}
+summary(modelo_multiple)$"coefficients"
+
+```
+
+## Valores predichosy los residuales
+
+Para obtener los valores predichos utilizamos el componentes del modelo llamada *fitted.values*
+
+```{r}
+valores_predichos <- modelo_multiple$fitted.values
+valores_predichos
+
+```
+
+**IMPORTANTE** : acá también, podemos utilizar los componentes del modelo estimado:
+
+```{r}
+names(modelo_multiple)
+```
+
+En el fondo, los valores predichos son importante, pero para una futura evaluación de las conficiones o diganóstico de nuestro RLM, se suelen utilizar más los residuos:
+
+```{r}
+summary(modelo_multiple)$"residuals"
+```
+
+Es mediante la evalución de los residuos que contrastaremos sus propiedades con las condiciones que una RLM debería poseer en sus condiciones.
+
+
+## Inferencia de la RLM y sus coeficientes
+
+En los resultados de una estimación de la RLM, podemos ver resultados inferenciales, tanto de prueba de hipótesis para ver si los coeficientes son significativos, así como de de los intervalos de confianza de estos.
+
+```{r}
+summary(modelo_multiple)
+
+```
+
+
+### Pruebas de hipótesis general 
+
+En la parte inferiore, se prueba si tiene cabida la aplicación de la RLM para explicar el precio de la vivienda:
+- F-Statistics
+- p-value
+
+```{r}
+summary(modelo_multiple)
+```
+
+
+¿Qué podemos decir al respecto?
+
+### Pruebas de hipótesis sobre los coeficientes 
+
+Las columnas de *t value* y *Pr(>|t|)* muestras las pruebas de significancia o de hipótesis para los coeficientes:
+
+```{r}
+summary(modelo_multiple)
+```
+
+¿Qué podemos decir al respecto?
+
+## Evaluación de la RLM
+
+Con tal de brindar una medida de bondad y ajuste para la RLM, se puede, a no haber más de más... utilizar el R2 y el R2 cuadrado.
+
+```{r}
+summary(modelo_multiple)$"r.squared"
+summary(modelo_multiple)$"adj.r.squared"
+```
+¿Qué podemos decir?
+¿Como lo interpretaríamos?
+
+## Propósitos de un modelo de regresión
+
+La RLM tiene 3 propósitos: 
+
+- Explicar la relación con respecto a la variable dependientes
+- Estimar los valores o hacer predicción a la RLM
+- Estandarizar algún proceso o precios de un servicio
+
+### Explicar la relación con respecto a la variable dependientes
+
+Sería evaluar el modelo estimado y analizar el conjunto de coefiecientes.
+
+```{r}
+summary(modelo_multiple)
+```
+
+¿Que podemos decir?
+
+### Estimar los valores o hacer predicción a la RLM
+
+Si nuestro modelo lineal simple era era:
+
+```{r}
+modelo_simple <- lm(data = Boston,  formula = medv ~ lstat)
+modelo_simple
+```
+
+Si la función es Y=34.55-0.95*B1,
+
+Cuál sería el precio para un casa con un lstat de 26 ?
+
+R/ 9.85         -----> 98 500 USD
+
+En R se utiliza la función predict() para llevar a cabo la predicción o la estimación de los valores.
+
+
+### Estandarizar algún proceso o precios de un servicio
+
+Establecido el modelo y predicciones, se puede estandarizar precios, y realizar, variando las variables,
+puntos de corte, etc., para llevar a cabo una estandarización.
+
+
+## Lo que deberíamos emprender antes de tener un modelo final de RLM
+
+Hay muchas variables, y lo que realmente deberíamos hacer, es antes una selección, y estimar la RLM con las variables que optimicen el modelo de regresión...
+
+Esto lo veremos en la siguiente clase !
+
+
+
+
+
+
+
+

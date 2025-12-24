@@ -1,0 +1,473 @@
+---
+title: "Diagnósticos en la  RLM"
+author: "OCM"
+
+
+output: 
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: false
+    number_sections: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+
+suppressWarnings(library(MASS)) 
+suppressWarnings(library(stats)) 
+suppressWarnings(library(psych)) 
+suppressWarnings(library(olsrr)) 
+suppressWarnings(library(reactable)) 
+suppressWarnings(library(modelr))
+suppressWarnings(library(broom))
+suppressWarnings(library(ggpubr))
+suppressWarnings(library(nortest))
+suppressWarnings(library(ggplot2))
+suppressWarnings(library(lmtest))
+suppressWarnings(library(corrplot))
+suppressWarnings(library(RColorBrewer))
+suppressWarnings(library(car))
+suppressWarnings(library(olsrr))
+
+
+
+# Importar archivos
+
+
+
+
+```
+
+# Las condiciones de la RLM: los diagnósticos y sus supuestos.
+
+El presente laboratorio se centra en verificar que las condiciones de la RLM se "cumplen"....
+
+Para ver su posible cumplimiento, se realizaran pruebas diagnóstico para conocer el estado del modelo estimado.
+
+¿Por qué del modelo estimado? ----> Partimos que se realizó el proceso de la selección de variables.
+
+Veremos algunas herramientas analíticas para diagnosticar el cumplimiento o no de las condiciones del modelo. Estas serán
+
+- Normalidad de los residuoss.
+- Variancia constante: la homocedasticidad.
+- Independencia lineal: la multicolinealidad.
+- Relación lineal con respecto a Y y las respuestas Xi.
+- Observaciones o valores extremos y de influencia.
+
+
+## Datos
+
+Volvemos a trabjar con el set de datos de Boston del paquete MASS, el cual recolecta la mediana del valor de la vivienda en 506 áreas residenciales de Boston. 
+
+Junto con el precio, se han registrado 13 variables adicionales.
+
+```{r}
+tail(Boston)
+```
+
+La descripción de las variables son:
+
+- crim: ratio de criminalidad per cápita de cada ciudad.
+- zn: Proporción de zonas residenciales con edificaciones de más de 25.000 pies cuadrados.
+- indus: proporción de zona industrializada.
+- chas: Si hay río en la ciudad (= 1 si hay río; 0 no hay).
+- nox: Concentración de óxidos de nitrógeno (partes per 10 millón).
+- rm: promedio de habitaciones por vivienda.
+- age: Proporción de viviendas ocupadas por el propietario construidas antes de 1940.
+- dis: Media ponderada de la distancias a cinco centros de empleo de Boston.
+- rad: Índice de accesibilidad a las autopistas radiales.
+- tax: Tasa de impuesto a la propiedad en unidades de $10,000.
+- ptratio: ratio de alumnos/profesor por ciudad.
+- black: 1000(Bk - 0.63)^2 donde Bk es la proporción de gente de color por ciudad.
+- lstat: porcentaje de población en condición de pobreza.
+- medv: Valor mediano de las casas ocupadas por el dueño en unidades de $1000s.
+
+## Estimación de la RLM para el análisis de los supuestos y diagnósticos.
+
+Se decidió que, luego de la selección de variables,  el modelo a estimar es el siguiente:
+
+```{r}
+
+modelo_multiple <- lm(formula = medv ~ crim + indus+ age +  tax + black + lstat, data = Boston)
+
+
+summary(modelo_multiple)
+```
+
+Se incluyen las variables crim, indus, age , tax, black y lstat, en la predicción del Valor mediano de las casas ocupadas por el dueño en unidades de $1000s (medv). 
+
+
+## Normalidad de los residuos.
+
+Al corroborar el supuesto de la normalidad de los residuos para la RLM estimada, se puede verificar de dos formas:
+
+- Pruebas gráficas
+- Pruebas de hipótesis
+
+Veamos cada caso
+
+### Prueba gráfica: QQ Plot
+
+Podemos verificar el histograma de los residuos, o graficar el QQ-Plot de los residuos.
+
+Extraigamos antes los residuos de nuestro modelo de regresión.
+
+```{r}
+modelo_multiple <- lm(formula = medv ~ crim + indus+ age +  tax + black + lstat, data = Boston)
+
+
+residuos <- summary(modelo_multiple)$residuals
+```
+
+
+#### Histograma de los residuos
+
+El histograma de los residuos:
+
+```{r}
+ggpubr::ggdensity(residuos,  fill = "lightgray", add = "mean",  xlab = "Residuos de la RLM")
+```
+
+
+¿Qué podemos decir sobre la  distribución de los residuos?
+
+
+#### QQ Plot 
+
+El QQ-Plot de los residuos es el siguiente:
+
+```{r}
+ggpubr::ggqqplot(residuos)
+```
+
+
+¿Qué podemos decir ssobre este?
+
+
+### Pruebas de Hipótesis de la normalidad de los residuos.
+
+Otra forma de corroborar es mediante pruebas de hipótesus. Estas podrían ser:
+
+- Shapiro-Wilk test
+- Anderson-Darling
+- Cramer-von Mises
+- Lilliefors (Kolmogorov-Smirnov)
+- Pearson chi-square
+- Shapiro-Francia test
+
+Veamos cada una de estas pruebas.
+
+- Shapiro-Wilk test
+
+```{r}
+shapiro.test(residuos)
+```
+¿Qué decisión tomamos?
+
+- Anderson-Darling
+
+```{r}
+nortest::ad.test(residuos)
+```
+
+¿Qué decisión tomamos?
+
+- Cramer-von Mises
+
+```{r}
+nortest::cvm.test(residuos)
+```
+
+¿Qué decisión tomamos?
+
+- Lilliefors (Kolmogorov-Smirnov)
+
+```{r}
+nortest::lillie.test(residuos)
+```
+
+¿Qué decisión tomamos?
+
+- Pearson chi-square
+
+```{r}
+nortest::pearson.test(residuos)
+```
+
+¿Qué decisión tomamos?
+
+- Shapiro-Francia test
+
+```{r}
+nortest::sf.test(residuos)
+```
+
+¿Qué decisión tomamos?
+
+### Conclusión sobre los residuos
+
+¿Qué podemos decir sobre el diagnóstico de los residuos ? 
+¿Se cumple el supuesto de normalidad?
+
+¿Que decisión debemos tomar al respecto?
+
+
+## Variancia constante: la homocedasticidad.
+
+Ahora vemos si la RLM estimada cumple con el supuesto de poseer variancia constante, o poseer la homocedasticidad. 
+
+También acá podemos proceder mediante métodos visuales (residuos) y una prueba de hipótesis numérica.
+
+### Pruebas gráficas
+
+Veamos gráficos de los residuos contra :
+
+Residuos vs la variable dependiente (Y)
+
+```{r}
+modelo_multiple <- lm(formula = medv ~ crim + indus+ age +  tax + black + lstat, data = Boston)
+
+
+residuos <- summary(modelo_multiple)$residuals
+
+ggplot(data = Boston, aes(y = residuos, x = medv)) + geom_point(col = 'blue') + geom_abline(slope = 0)
+```
+
+¿qué podemos decir al respecto?
+
+Residuos vs Valores ajustados
+
+```{r}
+plot(modelo_multiple, 1)
+```
+
+¿qué podemos decir al respecto?
+
+Residuos estandarizados vs valores ajustados
+
+```{r}
+plot(modelo_multiple, 3)
+```
+
+¿qué podemos decir al respecto?
+
+### Pruebas de Hipótesis
+
+Para probrar la variancia constante, podemos aplicar la prueba de Breusch-Pagan. 
+
+```{r}
+lmtest::bptest(modelo_multiple)
+```
+¿Qué podemos decir sobre la prueba?
+
+¿Y sobre la homocedastiticad?
+
+Pueden ver esta referencia también:
+
+https://bookdown.org/jimr1603/Intermediate_R_-_R_for_Survey_Analysis/testing-regression-assumptions.html#testing-the-homoscedasticity-assumption
+
+## Independencia lineal: la multicolinealidad.
+
+Cuando hablamos de Independencia lineal, nos suponemos que no existe una relación fuerte entre las variables, o también
+que una no suele ser una combinación lineal de la otra.
+
+Podemos verificar (no corroborar) esto mediante el gráfico del correlograma. 
+
+AUnque en el modelo no estimamos todas las variables de **Boston**, veamos el archivo completo:
+
+### El correloggrama 
+
+
+```{r}
+M <- cor(Boston)
+
+corrplot(M, type="upper", order="hclust",
+         col=brewer.pal(n=8, name="RdYlBu"))
+```
+
+¿Hay correlación entre las variables?
+
+### La VIF
+
+Una prueba más forma es la de la Inflacíón de la Variancia (VIF).
+
+```{r}
+modelo_multiple <- lm(formula = medv ~ crim + indus+ age +  tax + black + lstat, data = Boston)
+
+
+# Use the variance inflation factor from the car package
+car::vif(modelo_multiple)
+
+```
+
+Normalmente, VIF superiores a 10, suele ser indicios de presencia de Multicolinealidad.
+
+¿Qué podemos decir en este caso?
+
+## Relación lineal con respecto a Y y las respuestas.
+
+Al postular que estimamos una regresión **lineal** multivariada, estamos hablando sobre una relación lineal entre la variable dependiente **Y** y sus predictores **X**
+
+Un buen inicio es realizar todas las compararciones posibles mediante la variable **medv** y sus predictores. 
+
+```{r}
+modelo_multiple <- lm(formula = medv ~ crim + indus+ age +  tax + black + lstat, data = Boston)
+```
+
+Veamos las compararciones:
+
+```{r}
+plot(Boston$medv,Boston$crim)
+plot(Boston$medv,Boston$indus)
+plot(Boston$medv,Boston$age)
+plot(Boston$medv,Boston$tax)
+plot(Boston$medv,Boston$black)
+plot(Boston$medv,Boston$lstat)
+
+```
+
+¿Qué podemos decir al respecto?
+
+¿Podríamos pensar en algún tipo de transformación?
+
+## Valores extremos y de influencia.
+
+Antes:
+
+¿Qué es un valor extremo?
+Y, ¿Qué es un valor de influencia?
+
+### Valores extremos.
+
+Los valores extremos los podemos analizar de muchas formas, pero en una primera etapa, conviene analizar estos variables por variable.
+
+Podemos hacer esto mediante destribución de frecuencias o box plots:
+
+Análisis de cada una de las variables. Puede ser mediante destribuciones o un bloxplot. 
+
+```{r}
+ggplot(data = Boston, mapping = aes(x = medv)) +
+  geom_histogram(bins = 20, fill = "red") +
+  labs(x = "valor en unidades de $ 1000") +
+  ggtitle("Histograma del Valor mediano de las casas ocupadas por el dueño en unidades de $1000s") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+Para el caso del Box Plot
+
+```{r}
+ggplot(data = Boston, mapping = aes(x = " ", y = medv)) +
+  geom_boxplot(outlier.color = "red", outlier.shape = 1) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.subtitle = element_text(hjust = 0.5))
+```
+
+¿QUé podemos decir al respecto?  
+
+Otra forma es graficar los residuos, y un poco su comportamiento:
+
+```{r}
+plot(residuos)
+```
+
+¿Parece hacr uno  o varios valoers que se alejan de los otros?
+
+Me gusta en este punto también ver la distribución de los residuos (esto lo vismo en la normalidad, pero me parece que estos análisis se deben de pensar de  forma conjunta):
+
+```{r}
+ggpubr::ggdensity(residuos,  fill = "lightgray", add = "mean",  xlab = "Residuos de la RLM")
+```
+
+Efecticamente, hay una asimetría positiva, pero, ¿qué podemos decir al respecto?
+
+
+### Valores de influencia.
+
+Ahora, un valor extremo puede llegar a ser un problema si es realmente un valor de influecia.
+
+Vamos a analizar 3 tipos de valores de influencia:
+
+- Sobre un solo valor ajustado (DFFITS)
+- Sobre todos los valores ajustados (Distancia de Cook).
+- Sobre los coeficientes (DFBETAS).
+
+####  Sobre un solo valor ajustado (DFFITS)
+
+Veamos este caso:
+
+```{r}
+n <- nrow(Boston)
+k <- length(modelo_multiple$coefficients)-1
+cv <- 2*sqrt(k/n)
+
+plot(dffits(modelo_multiple), 
+     ylab = "Standardized dfFits", xlab = "Index", 
+     main = paste("Standardized DfFits, \n critical value = 2*sqrt(k/n) = +/-", round(cv,3)))
+
+#Critical Value horizontal lines
+abline(h = cv, lty = 2)
+abline(h = -cv, lty = 2)
+```
+
+¿Qué podemos decir?
+
+#### Sobre todos los valores ajustados (Distancia de Cook).
+
+Veamos estas dos opciones:
+
+```{r}
+plot(modelo_multiple, 4)
+```
+Otra forma de ver las distancias de Cook
+
+```{r}
+plot(modelo_multiple, 5)
+```
+
+
+#### Sobre los coeficientes (DFBETAS).
+
+Veamos estos casos (influencia sobre los coeficientes)
+
+```{r}
+modelo_multiple <- lm(formula = medv ~ crim + indus+ age +  tax + black + lstat, data = Boston)
+ols_plot_dfbetas(modelo_multiple)
+```
+
+¿Qué podemos decir?
+
+####  Otra forma de ver varios a la vez
+
+Veamos esta opción que expone un poco todas las posibilidades:
+
+```{r}
+modelo_multiple <- lm(formula = medv ~ crim + indus+ age +  tax + black + lstat, data = Boston)
+ols_plot_resid_lev(modelo_multiple)
+```
+
+¿Qué podemos decir?
+
+#### Otras referencias
+
+El siguiente enlace muestra una forma de analizar de forma más exhaustiva (más pruebas) los valos extremos y de influencia:
+
+https://cran.r-project.org/web/packages/olsrr/vignettes/influence_measures.html
+
+
+## Conclusión.
+
+Analisados los diagnósticos, debemos de tomar dicisiones:
+
+- No hacer nada
+- Aplicar medidas remediales
+- Aplicar otro(s) métodos de estimmación
+- La regresión lineal múltiple no puede ser una técnica adecuada en el presente contexto....
+
+Pero se debe de tomar la decisión en base a:
+
+- Realizar estimaciones 
+- Ver los coeficientes
+- Ver si sirve para crear un  valor o estandarización del presio de los hogares.

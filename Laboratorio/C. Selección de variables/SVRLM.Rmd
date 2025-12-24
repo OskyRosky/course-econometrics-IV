@@ -1,0 +1,275 @@
+---
+title: "Selección de variables en una RLM"
+author: "OCM"
+
+
+output: 
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: false
+    number_sections: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+
+suppressWarnings(library(MASS)) 
+suppressWarnings(library(stats)) 
+suppressWarnings(library(psych)) 
+suppressWarnings(library(olsrr)) 
+suppressWarnings(library(reactable)) 
+suppressWarnings(library(modelr))
+suppressWarnings(library(broom))
+
+```
+
+# Selección de variables independientes o predictores en una RLM.
+
+El presente laboratorio se centra en las herramientas disponibles para determinar los predictores que podrían estar presentes en nuestro modelo de regresión. 
+
+Veremos algunas herramientas analíticas para poder llegar a una correcta selección de las variables independientes en nuestra regresión:
+
+- El coeficiente de determinación
+- Los criterios de Backward, forward y stepwise.
+- Los criterios de información
+- El best subset o estadístico de Mallow.
+
+
+
+## Datos
+
+Volvemos a trabjar con el set de datos de Boston del paquete MASS recoge la mediana del valor de la vivienda en 506 áreas residenciales de Boston. Junto con el precio, se han registrado 13 variables adicionales.
+
+```{r}
+tail(Boston)
+```
+
+- crim: ratio de criminalidad per cápita de cada ciudad.
+- zn: Proporción de zonas residenciales con edificaciones de más de 25.000 pies cuadrados.
+- indus: proporción de zona industrializada.
+- chas: Si hay río en la ciudad (= 1 si hay río; 0 no hay).
+- nox: Concentración de óxidos de nitrógeno (partes per 10 millón).
+- rm: promedio de habitaciones por vivienda.
+- age: Proporción de viviendas ocupadas por el propietario construidas antes de 1940.
+- dis: Media ponderada de la distancias a cinco centros de empleo de Boston.
+- rad: Índice de accesibilidad a las autopistas radiales.
+- tax: Tasa de impuesto a la propiedad en unidades de $10,000.
+- ptratio: ratio de alumnos/profesor por ciudad.
+- black: 1000(Bk - 0.63)^2 donde Bk es la proporción de gente de color por ciudad.
+- lstat: porcentaje de población en condición de pobreza.
+- medv: Valor mediano de las casas ocupadas por el dueño en unidades de $1000s.
+
+## Estimación de la RLM
+
+Habíamos visto que los coeficientes de la recta de RLM, incluyendo todas las variables, era la siguiente:
+
+```{r}
+
+modelo_multiple <- lm(formula = medv ~ ., data = Boston)
+
+
+summary(modelo_multiple)
+```
+
+¿Qué podemos decir de la significancia de todos las variables, o los coeficientes de la RLM?
+¿Deberíamos incluirlos todo?
+
+Veremos formas de analizar el 
+
+## Criterio del coeficiente de determinación
+
+A título personal, creo que el R2 y R2 ajustado, solo y solo sirven en la comparación de modelos de regresión. 
+
+Veamos el método de la "fuerza"
+
+```{r}
+modelo.1 <- lm(formula = medv ~ crim , data = Boston)
+summary(modelo.1)$"adj.r.squared"
+
+
+modelo.2 <- lm(formula = medv ~ zn , data = Boston)
+summary(modelo.2)$"adj.r.squared"
+
+
+modelo.3 <- lm(formula = medv ~ chas , data = Boston)
+summary(modelo.3)$"adj.r.squared"
+```
+
+
+Y habría que hacer, todas las posibles combinaciones de todas las variables... lo cual es una tarea bastante larga.
+
+Otra, forma, la cuál es recomendable, es el uso de la fución "ols_step_all_possible".
+
+Utilizaremos solo unas cuantas de las variables, para que la tabbla no sea muy grande.... además que en mi compu no se procesó 
+en 30 min...
+
+
+```{r}
+modelo_multiple <- lm(formula = medv ~ zn + crim + nox +age + lstat +black +indus, data = Boston)
+
+
+modelos <- ols_step_all_possible(modelo_multiple)
+
+reactable::reactable(modelos)
+
+```
+
+Utilizan las funciones del reactable para ordenar los datos.
+
+¿Cuál sería la mejor combination?
+
+En nuestro caso, son muchísimos los modelos que se calcularon, y debemos, por lo tanto, verificar cuál es el 
+
+## Los métodos backward, forward y stepwise
+
+
+
+### El método de selección backward
+
+Se inicia con un modelo completo con todos los predictores.
+
+Se elimina el predictor que tenga el valor de p más alto que sea mayor a un valor de a establecido.
+
+Se vuelve a ajustar el modelo y se elimina el siguiente predictor usan el mismo criterio.
+El procedimiento se detiene cuando ningún predictor tiene un valor de p mayor al alfa.
+
+El valor de alfa se llama p-para-remover y no tiene que ser 0.05.  Cuando interesa usar el modelo para predicción se acostumbra un a entre 0.15 y 0.20.
+
+
+
+```{r}
+modelo_multiple <- lm(formula = medv ~ zn + crim + nox +age + lstat +black +indus, data = Boston)
+
+step(modelo_multiple,direction="backward")
+```
+
+
+Otra alternativa más novedosa:
+
+```{r}
+modelo_multiple <- lm(formula = medv ~ zn + crim + nox +age + lstat +black +indus, data = Boston)
+
+ols_step_backward_p(modelo_multiple, details = TRUE)
+```
+ 
+¿qué podemos decir de los resultados de la selección? ¿Cuál modelo debemos seleccionar?
+
+### Forward
+
+Se inicia con un modelo sin ninguna variable.
+
+Se ajusta un nuevo modelo agregando una variable solamente, por lo tanto, habrá que ajustar tantas variables como predictores estén aún fuera del modelo. 
+
+Se escoge el modelo que tenga el menor valor de p para la variable agregada, siempre que ese valor de p sea menor que el alfa establecido.
+
+Se continúa hasta que no haya predictores para agregar.
+
+
+```{r}
+modelo_multiple <- lm(formula = medv ~ zn + crim + nox +age + lstat +black +indus, data = Boston)
+
+step(modelo_multiple,direction="forward")
+```
+
+Otra alternativa más novedosa:
+
+```{r}
+modelo_multiple <- lm(formula = medv ~ zn + crim + nox +age + lstat +black +indus, data = Boston)
+
+ols_step_forward_p(modelo_multiple)
+```
+
+¿qué podemos decir de los resultados de la selección? ¿Cuál modelo debemos seleccionar?
+
+### Stepwise
+
+Es una combinación de la eliminación hacia atrás y la selección hacia delante.
+
+Toma en cuenta la situación cuando las variables se agregan o remueven temprano en el proceso y después se quiere cambiar de opinión.
+
+En cada paso se puede agregar o remover una variable – hay variantes de cómo hacer esto.
+
+
+```{r}
+modelo_multiple <- lm(formula = medv ~ zn + crim + nox +age + lstat +black +indus, data = Boston)
+
+step(modelo_multiple,direction="both")
+```
+ 
+Otra alternativa más novedosa:
+
+```{r}
+modelo_multiple <- lm(formula = medv ~ zn + crim + nox +age + lstat +black +indus, data = Boston)
+
+ols_step_both_p(modelo_multiple)
+
+```
+
+¿qué podemos decir de los resultados de la selección? ¿Cuál modelo debemos seleccionar?
+ 
+## Los criterios de información
+
+Los criterioes de información de AIC y BIC son otra forma tanto para evaluar un modelo de regresión, así como para ayudar con la selección de variables.
+
+Una forma de obtener estos indicadores puede ser de la siguiente forma:
+
+```{r}
+modelo_multiple <- lm(formula = medv ~ zn + crim + nox +age + lstat +black +indus, data = Boston)
+summary(modelo_multiple)
+AIC(modelo_multiple)
+BIC(modelo_multiple)
+
+```
+
+SIEMPRE, en la comparación de modelos, debemos elegir los criterios que posean los valores menores de AIC y BIC (aún en valores negativos.)
+
+Una forma automática del AIC y BIC, es mediante la función anterior:
+
+```{r}
+modelo_multiple <- lm(formula = medv ~ zn + crim + nox +age + lstat +black +indus, data = Boston)
+
+
+modelos <- ols_step_all_possible(modelo_multiple)
+
+reactable::reactable(modelos)
+```
+
+
+¿qué podemos decir de los resultados de la selección? ¿Cuál modelo debemos seleccionar?
+
+## El best subset o el estadístico de Mallow
+
+Es una forma de, comparando con un modelo completo, saber cuál sería el mejor modelo inferior al completo.
+
+Habíamos visto que el análisis anterior nos había dado referencias del indicador de Mallow (Cp):
+
+
+```{r}
+modelo_multiple <- lm(formula = medv ~ zn + crim + nox +age + lstat +black +indus, data = Boston)
+
+
+modelos <- ols_step_all_possible(modelo_multiple)
+
+reactable::reactable(modelos)
+
+```
+
+En este , como el Cp es  una medida de buena predicción es el error cuadrático medio total (del modelo con p-1 variables) dividido por la variancia del error (del modelo completo), deberíamos seleccionar el CP más pequeño.
+
+Hay una forma gráfica de ver el estadístco de Mallow.... pero la verdad creo que es una librería que entró en desactualización ....
+
+
+## Finalmente
+
+¿Cuál debería ser el modelo de predicción?
+
+## Análisis de la selección de variables
+
+En el siguiente enlace, analizan la selección de variables de Boston:
+
+https://bookdown.org/egarpor/PM-UC3M/lm-ii-modsel.html
+

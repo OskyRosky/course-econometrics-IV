@@ -1,0 +1,206 @@
+---
+title: "Regresión bivariada en R"
+author: "OCM"
+
+
+output: 
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: false
+    number_sections: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+suppressWarnings(library(MASS)) 
+suppressWarnings(library(stats)) 
+suppressWarnings(library(psych)) 
+
+```
+
+<style>
+table {
+background-color:#FFFFFF;
+}
+</style>
+
+<style>
+.list-group-item.active, .list-group-item.active:focus, .list-group-item.active:hover {
+    background-color: darkblue;
+}
+</style>
+
+<button onclick="document.body.scrollTop = document.documentElement.scrollTop = 0;" style="
+    position: fixed;
+    bottom: 5px;
+    right: 40px;
+    text-align: center;
+    cursor: pointer;
+    outline: none;
+    color: #fff;
+    background-color: #0A71A0;
+    border: none;
+    border-radius: 15px;
+    
+">Ir arriba</button>
+
+# Regresión.
+
+El objetivo es mostrar los principales comandos en R para generar:
+
+- Regresió lineal simple
+- Presentar de forma visual la correlación.
+
+De igual forma se verán ciertas etapas de análisis que componen a estas variantes de la regresión, aunque serán abordadas de forma completa en el análsis de la regresión múltiple.
+
+## Datos
+
+El dataset Boston del paquete MASS recoge la mediana del valor de la vivienda en 506 áreas residenciales de Boston. Junto con el precio, se han registrado 13 variables adicionales.
+
+```{r}
+tail(Boston)
+```
+
+- crim: ratio de criminalidad per cápita de cada ciudad.
+- zn: Proporción de zonas residenciales con edificaciones de más de 25.000 pies cuadrados.
+- indus: proporción de zona industrializada.
+- chas: Si hay río en la ciudad (= 1 si hay río; 0 no hay).
+- nox: Concentración de óxidos de nitrógeno (partes per 10 millón).
+- rm: promedio de habitaciones por vivienda.
+- age: Proporción de viviendas ocupadas por el propietario construidas antes de 1940.
+- dis: Media ponderada de la distancias a cinco centros de empleo de Boston.
+- rad: Índice de accesibilidad a las autopistas radiales.
+- tax: Tasa de impuesto a la propiedad en unidades de $10,000.
+- ptratio: ratio de alumnos/profesor por ciudad.
+- black: 1000(Bk - 0.63)^2 donde Bk es la proporción de gente de color por ciudad.
+- lstat: porcentaje de población en condición de pobreza.
+- medv: Valor mediano de las casas ocupadas por el dueño en unidades de $1000s.
+
+## Correlación - Correlograma
+
+Un análisis visual de la correlación entre las varibles edad (age) y porcentaje de población en condición de pobreza (lstat), sería la siguiente:
+
+```{r}
+plot(Boston$age, Boston$lstat)
+
+```
+¿Qué podemos decir de la correlación entre la edad y el porcentaje de población en condición de pobreza?
+
+Muchas veces conviene hacer un análisis de la correlación de todas las variables:
+
+```{r}
+plot(Boston)
+```
+
+Para un análisis múltiple, esta etapa es obligatoria.  
+
+## Regresión lineal simple
+
+## Análisis descriptivos de los datos
+
+Al realizar un análisis de regresión, lo primero que vemos llevar a cabo es un análisis descriptivo de las variables.
+
+```{r}
+summary(Boston)
+```
+
+Un análisis visual facilita la comprensión. Veamos las distribuciones por variable:
+
+```{r}
+multi.hist(x = Boston[,1:3], dcol = c("blue","red"), dlty = c("dotted", "solid"),
+           main = "")
+
+multi.hist(x = Boston[,5:9], dcol = c("blue","red"), dlty = c("dotted", "solid"),
+           main = "")
+
+multi.hist(x = Boston[,10:14], dcol = c("blue","red"),
+           dlty = c("dotted", "solid"), main = "")
+```
+
+vemos que los datos no poseen total normalidad en las variables...
+
+## Regresión lineal simple
+
+Se pretende predecir el valor de la vivienda en función del porcentaje de pobreza de la población. Empleando la función *lm()* se genera un modelo de regresión lineal por mínimos cuadrados en el que la variable respuesta es **medv** y el predictor **lstat**.
+
+La función a utilizar el *lm()*
+
+Las parámetros de la función son **data =** y **formula=**
+
+```{r}
+modelo_simple <- lm(data = Boston,  formula = medv ~ lstat)
+modelo_simple
+
+
+names(modelo_simple) #  ------> los argumentos de la función lm(), y que podemos llamar.
+summary(modelo_simple)  #  ------>  el modelo o la ecuación del modelo.
+```
+
+En la información devuelta por el *summary* se observa que el p-value del estadístico F es muy pequeño, indicando que al menos uno de los predictores del modelo está significativamente relacionado con la variable respuesta. 
+
+¿Cómo sería en palabras del presente ejemplo? 
+¿Cómo interpretacmos el **-0.95005** ?
+
+
+La creación de un modelo de regresión lineal simple suele acompañarse de una representación gráfica superponiendo las observaciones con el modelo. Además de ayudar a la interpretación, es el primer paso para identificar posibles violaciones de las condiciones de la regresión lineal.
+
+```{r}
+attach(Boston)
+plot(x = lstat, y = medv, main = "medv vs lstat", pch = 20, col = "grey30")
+abline(modelo_simple, lwd = 3, col = "red")
+```
+
+La representación gráfica de las observaciones muestra que la relación entre ambas variables estudiadas no es del todo lineal, lo que apunta a que otro tipo de modelo podría explicar mejor la relación. Aun así la aproximación no es mala.
+
+Una vez generado el modelo, es posible predecir el valor de la vivienda sabiendo el estatus de la población en la que se encuentra. Toda predicción tiene asociado un error y por lo tanto un intervalo. Es importante diferenciar entre dos tipos de intervalo:
+
+Intervalo de confianza: Devuelve un intervalo para el valor promedio de todas las viviendas que se encuentren en una población con un determinado porcentaje de pobreza, supóngase lstat=10.
+
+```{r}
+predict(object = modelo_simple, newdata = data.frame(lstat = c(10)),
+        interval = "confidence", level = 0.95)
+```
+
+Intervalo de predicción: Devuelve un intervalo para el valor esperado de una vivienda en particular que se encuentre en una población con un determinado porcentaje de pobreza.
+
+
+```{r}
+predict(object = modelo_simple, newdata = data.frame(lstat = c(10)),
+        interval = "prediction", level = 0.95)
+```
+
+## Supuestos o condiciones del modelo o ecuación de regresión.
+
+Una de las mejores formas de confirmar que las condiciones necesarias para un modelo de regresión lineal simple por mínimos cuadrados se cumplen es mediante el estudio de los residuos del modelo.
+
+En R, los residuos se almacenan dentro del modelo bajo el nombre de residuals. R genera automáticamente los gráficos más típicos para la evaluación de los residuos de un modelo.
+
+```{r}
+par(mfrow = c(1,2))
+plot(modelo_simple)
+par(mfrow = c(1,1))
+```
+
+Otra forma de identificar las observaciones que puedan ser outliers o puntos con alta influencia (leverage) es emplear las funciones *rstudent()* y *hatvalues()*.
+
+```{r}
+plot(x = modelo_simple$fitted.values, y = abs(rstudent(modelo_simple)),
+     main = "Absolute studentized residuals vs predicted values", pch = 20,
+     col = "grey30")
+abline(h = 3, col = "red")
+
+plot(hatvalues(modelo_simple), main = "Medición de leverage", pch = 20)
+# Se añade una línea en el threshold de influencia acorde a la regla
+# 2.5x((p+1)/n)
+abline(h = 2.5*((dim(modelo_simple$model)[2]-1 + 1)/dim(modelo_simple$model)[1]),
+       col = "red")
+```
+
+En este caso muchos de los valores parecen posibles outliers o puntos con alta influencia porque los datos realmente no se distribuyen de forma lineal en los extremos. 
+
+Deberíamos evaluar otros modelos y otras variables. 
+
+Esto nos conduce que un modelo bivariada muchas veces suele ser insuficiente, y debemos recurrir a modelos de **regresión multivariados**.

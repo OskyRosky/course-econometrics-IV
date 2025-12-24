@@ -1,0 +1,294 @@
+---
+title: 'Tema A: Correlación y Regresión Bivariada en R'
+
+output: 
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: false
+    number_sections: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+suppressWarnings(library(magrittr))
+suppressWarnings(library(dplyr))
+suppressWarnings(library(readxl))
+
+
+suppressWarnings(library(ggplot2))
+suppressWarnings(library(MASS))
+
+
+
+```
+
+<style>
+table {
+background-color:#FFFFFF;
+}
+</style>
+
+<style>
+.list-group-item.active, .list-group-item.active:focus, .list-group-item.active:hover {
+    background-color: darkblue;
+}
+</style>
+
+<button onclick="document.body.scrollTop = document.documentElement.scrollTop = 0;" style="
+    position: fixed;
+    bottom: 5px;
+    right: 40px;
+    text-align: center;
+    cursor: pointer;
+    outline: none;
+    color: #fff;
+    background-color: #0A71A0;
+    border: none;
+    border-radius: 15px;
+    
+">Ir arriba</button>
+
+
+
+# Regresión.
+
+El objetivo es mostrar los principales comandos en R para generar:
+
+- Regresió lineal simple
+- Regresión lineal múltiple.
+
+De igual forma se verán ciertas etapas de análisis que componen a estas variantes de la regresión.
+
+## Datos
+
+El dataset Boston del paquete MASS recoge la mediana del valor de la vivienda en 506 áreas residenciales de Boston. Junto con el precio, se han registrado 13 variables adicionales.
+
+```{r}
+tail(Boston)
+```
+
+- crim: ratio de criminalidad per cápita de cada ciudad.
+- zn: Proporción de zonas residenciales con edificaciones de más de 25.000 pies cuadrados.
+- indus: proporción de zona industrializada.
+- chas: Si hay río en la ciudad (= 1 si hay río; 0 no hay).
+- nox: Concentración de óxidos de nitrógeno (partes per 10 millón).
+- rm: promedio de habitaciones por vivienda.
+- age: Proporción de viviendas ocupadas por el propietario construidas antes de 1940.
+- dis: Media ponderada de la distancias a cinco centros de empleo de Boston.
+- rad: Índice de accesibilidad a las autopistas radiales.
+- tax: Tasa de impuesto a la propiedad en unidades de $10,000.
+- ptratio: ratio de alumnos/profesor por ciudad.
+- black: 1000(Bk - 0.63)^2 donde Bk es la proporción de gente de color por ciudad.
+- lstat: porcentaje de población en condición de pobreza.
+- medv: Valor mediano de las casas ocupadas por el dueño en unidades de $1000s.
+
+## Regresión lineal simple
+
+## Análisis descriptivos de los datos
+
+```{r}
+summary(Boston)
+```
+
+Veamos las distribuciones por variable:
+
+```{r}
+multi.hist(x = Boston[,1:3], dcol = c("blue","red"), dlty = c("dotted", "solid"),
+           main = "")
+
+multi.hist(x = Boston[,5:9], dcol = c("blue","red"), dlty = c("dotted", "solid"),
+           main = "")
+
+multi.hist(x = Boston[,10:14], dcol = c("blue","red"),
+           dlty = c("dotted", "solid"), main = "")
+```
+
+vemos que los datos no poseen total normalidad en las variables.
+
+## Regresión lineal simple
+
+Se pretende predecir el valor de la vivienda en función del porcentaje de pobreza de la población. Empleando la función *lm()* se genera un modelo de regresión lineal por mínimos cuadrados en el que la variable respuesta es **medv** y el predictor **lstat**.
+
+```{r}
+modelo_simple <- lm(data = Boston,formula = medv ~ lstat)
+modelo_simple
+names(modelo_simple)
+summary(modelo_simple)
+```
+
+En la información devuelta por el summary se observa que el p-value del estadístico F es muy pequeño, indicando que al menos uno de los predictores del modelo está significativamente relacionado con la variable respuesta. ¿Cómo sería en palabras del presente ejemplo?
+
+
+La creación de un modelo de regresión lineal simple suele acompañarse de una representación gráfica superponiendo las observaciones con el modelo. Además de ayudar a la interpretación, es el primer paso para identificar posibles violaciones de las condiciones de la regresión lineal.
+
+```{r}
+attach(Boston)
+plot(x = lstat, y = medv, main = "medv vs lstat", pch = 20, col = "grey30")
+abline(modelo_simple, lwd = 3, col = "red")
+```
+
+La representación gráfica de las observaciones muestra que la relación entre ambas variables estudiadas no es del todo lineal, lo que apunta a que otro tipo de modelo podría explicar mejor la relación. Aun así la aproximación no es mala.
+
+Una vez generado el modelo, es posible predecir el valor de la vivienda sabiendo el estatus de la población en la que se encuentra. Toda predicción tiene asociado un error y por lo tanto un intervalo. Es importante diferenciar entre dos tipos de intervalo:
+
+Intervalo de confianza: Devuelve un intervalo para el valor promedio de todas las viviendas que se encuentren en una población con un determinado porcentaje de pobreza, supóngase lstat=10.
+
+```{r}
+predict(object = modelo_simple, newdata = data.frame(lstat = c(10)),
+        interval = "confidence", level = 0.95)
+```
+
+Intervalo de predicción: Devuelve un intervalo para el valor esperado de una vivienda en particular que se encuentre en una población con un determinado porcentaje de pobreza.
+
+
+```{r}
+predict(object = modelo_simple, newdata = data.frame(lstat = c(10)),
+        interval = "prediction", level = 0.95)
+```
+
+
+Una de las mejores formas de confirmar que las condiciones necesarias para un modelo de regresión lineal simple por mínimos cuadrados se cumplen es mediante el estudio de los residuos del modelo.
+
+En R, los residuos se almacenan dentro del modelo bajo el nombre de residuals. R genera automáticamente los gráficos más típicos para la evaluación de los residuos de un modelo.
+
+```{r}
+par(mfrow = c(1,2))
+plot(modelo_simple)
+par(mfrow = c(1,1))
+```
+
+Otra forma de identificar las observaciones que puedan ser outliers o puntos con alta influencia (leverage) es emplear las funciones *rstudent()* y *hatvalues()*.
+
+```{r}
+plot(x = modelo_simple$fitted.values, y = abs(rstudent(modelo_simple)),
+     main = "Absolute studentized residuals vs predicted values", pch = 20,
+     col = "grey30")
+abline(h = 3, col = "red")
+
+plot(hatvalues(modelo_simple), main = "Medición de leverage", pch = 20)
+# Se añade una línea en el threshold de influencia acorde a la regla
+# 2.5x((p+1)/n)
+abline(h = 2.5*((dim(modelo_simple$model)[2]-1 + 1)/dim(modelo_simple$model)[1]),
+       col = "red")
+```
+
+En este caso muchos de los valores parecen posibles outliers o puntos con alta influencia porque los datos realmente no se distribuyen de forma lineal en los extremos. Deberíamos evaluar otros modelos y otras variables.
+
+## Regresión múltiple
+
+Se desea generar un modelo que permita explicar el precio de la vivienda de una población empleando para ello cualquiera de las variables disponibles en el dataset Boston y que resulten útiles en el modelo.
+
+R permite crear un modelo con todas las variables incluidas en un data.frame de la siguiente forma:
+
+```{r}
+modelo_multiple <- lm(formula = medv ~ ., data = Boston)
+# También se pueden especificar una a una 
+summary(modelo_multiple)
+```
+
+En el summary se puede observar que algunos predictores tienen p-values muy altos, sugiriendo que no contribuyen al modelo por lo que deben ser excluidos, por ejemplo age e indus. La exclusión de predictores basándose en p-values no es aconsejable, en su lugar se recomienda emplear métodos de best subset selection, stepwise selection (forward, backward e hybrid) o Shrinkage/regularization.
+
+```{r}
+step(modelo_multiple, direction = "both", trace = 0)
+```
+
+La selección de predictores empleando stepwise selection (hybrid/doble) ha identificado como mejor modelo el formado por los predictores crim, zn, chas, nox, rm, dis, rad, tax, ptratio, black, lstat.
+
+```{r}
+modelo_multiple <- lm(formula = medv ~ crim + zn + chas +  nox + rm +  dis +
+                      rad + tax + ptratio + black + lstat, data = Boston)
+# También se pueden indicar todas las variables de un data.frame y exluir algunas
+# modelo_multiple <- lm(formula = medv~. -age -indus, data = Boston)
+summary(modelo_multiple)
+```
+
+### Supuestos 
+
+En los modelos de regresión lineal con múltiples predictores, además del estudio de los residuos vistos en el modelo simple, es necesario descartar colinealidad o multicolinealidad entre variables.
+
+
+```{r}
+par(mfrow = c(1,2))
+plot(modelo_multiple)
+par(mfrow = c(1,1))
+```
+
+Para la colinealidad se recomienda calcular el coeficiente de correlación entre cada par de predictores incluidos en el modelo:
+
+```{r}
+require(corrplot)
+corrplot.mixed(corr = cor(Boston[,c("crim", "zn", "nox", "rm", "dis", "rad", 
+                                    "tax", "ptratio", "black", "lstat", "medv")],
+                          method = "pearson"))
+```
+
+El análisis muestra correlaciones muy altas entre los predictores rad y tax (positiva) y entre dis y nox (negativa).
+
+```{r}
+attach(Boston)
+par(mfrow = c(2,2))
+plot(x = tax, y = rad, pch = 20)
+plot(x = tax, y = nox, pch = 20)
+plot(x = dis, y = nox, pch = 20)
+plot(x = medv, y = rm, pch = 20)
+par(mfrow = c(1,1))
+```
+
+Si la correlación es alta y por lo tanto las variables aportan información redundante, es recomendable analizar si el modelo mejora o no empeora excluyendo alguno de estos predictores.
+
+Para el estudio de la multicolinealidad una de las medidas más utilizadas es el factor de inflación de varianza VIF. Puede calcularse mediante la función vif() del paquete car.
+
+```{r}
+require(car)
+vif(modelo_multiple)
+```
+
+Los indices VIF son bajos o moderados, valores entre 5 y 10 indican posibles problemas y valores mayores o iguales a 10 se consideran muy problemáticos.
+
+De igual forma, podemos realizar la predicción para el modelo múltiple pero indicando el valor a predir para cada variable.
+
+## Regresión Polinomial: incorporar no-linealidad a los modelos lineales
+
+La Regresión Polinomial, aunque permite describir relaciones no lineales, se trata de un modelo lineal en el que se incorporan nuevos predictores elevando el valor de los ya existentes a diferentes potencias.
+
+Cuando se intenta predecir el valor de la vivienda en función del estatus de la población, el modelo lineal generado no se ajusta del todo bien debido a que las observaciones muestran una relación entre ambas variables con cierta curvatura.
+
+```{r}
+attach(Boston)
+plot(x = lstat, y = medv, main = "medv vs lstat", pch = 20, col = "grey30")
+abline(modelo_simple, lwd = 3, col = "red")
+```
+
+La curvatura descrita apunta a una posible relación cuadrática, por lo que un polinomio de segundo grado podría capturar mejor la relación entre las variables. En R se pueden generar modelos de regresión polinómica de diferentes formas:
+
+Identificando cada elemento del polinomio: modelo_pol2 <- lm(formula = medv ~ lstat + I(lstat^2), data = Boston) El uso de I() es necesario ya que el símbolo ^ tiene otra función dentro de las formula de R.
+
+Con la función poly(): lm(formula = medv ~ poly(lstat, 2), data = Boston)
+
+```{r}
+modelo_pol2 <- lm(formula = medv ~ poly(lstat, 2), data = Boston)
+summary(modelo_pol2)
+```
+
+El p-value próximo a 0 del predictor cuadrático de lstat indica que contribuye a mejorar el modelo.
+
+```{r}
+attach(Boston)
+plot(x = lstat, y = medv, main = "medv vs lstat", pch = 20, col = "grey30")
+points(lstat, fitted(modelo_pol2), col = 'red', pch = 20)
+```
+
+A la hora de comparar dos modelos se pueden evaluar sus R2. En este caso el modelo cuadrático es capaz de explicar un 64% de variabilidad frente al 54% del modelo lineal.
+
+Dado que un polinomio de orden n siempre va a estar anidado a uno de orden n+1, se pueden comparar modelos polinómicos dentro un rango de grados haciendo comparaciones secuenciales.
+
+```{r}
+anova(modelo_simple, modelo_pol2)
+```
+
+El p-value obtenido para el estadístico F confirma que el modelo cuadrático es superior.
+
+

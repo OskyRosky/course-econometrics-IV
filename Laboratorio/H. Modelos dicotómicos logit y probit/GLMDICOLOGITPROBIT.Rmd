@@ -1,0 +1,720 @@
+---
+title: "Regresión dicotómica: el logit y el probit"
+author: "OCM"
+
+
+output: 
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: false
+    number_sections: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+suppressWarnings(library(magrittr))
+suppressWarnings(library(dplyr))
+suppressWarnings(library(readxl))
+suppressWarnings(library(tidyr))
+suppressWarnings(library(DT))
+
+suppressWarnings(library(magrittr)) 
+suppressWarnings(library(dplyr))   
+suppressWarnings(library(stats))
+suppressWarnings(library(FactoMineR))
+suppressWarnings(library(ade4))
+suppressWarnings(library(amap))
+suppressWarnings(library(ggplot2))
+suppressWarnings(library(factoextra))
+
+suppressWarnings(library(FactoMineR))
+suppressWarnings(library(factoextra))
+#library("grid")
+suppressWarnings(library(REdaS))
+suppressWarnings(library(corpcor))
+suppressWarnings(library(GPArotation))
+suppressWarnings(library(psych))
+suppressWarnings(library(ggplot2))
+suppressWarnings(library(MASS))
+suppressWarnings(library(GGally))
+suppressWarnings(library(corrplot))
+suppressWarnings(library(Hmisc))
+suppressWarnings(library(psych))
+suppressWarnings(library(corrplot))
+suppressWarnings(library(nFactors))
+
+suppressWarnings(library(mclust))
+suppressWarnings(library(reshape2))
+suppressWarnings(library(MVN))
+suppressWarnings(library(stats))
+suppressWarnings(library(cluster))
+suppressWarnings(library(mclust))
+suppressWarnings(library(dendextend))
+suppressWarnings(library(igraph))
+suppressWarnings(library(ape))
+suppressWarnings(library(NbClust))
+suppressWarnings(library(factoextra))
+suppressWarnings(library(ggpubr))
+suppressWarnings(library(purrr))
+suppressWarnings(library(clustertend))
+suppressWarnings(library(fpc))
+suppressWarnings(library(pheatmap))
+suppressWarnings(library(dendextend))
+suppressWarnings(library(clValid))
+suppressWarnings(library(klaR))
+suppressWarnings(library(boot))
+suppressWarnings(library(broom))
+suppressWarnings(library(forecast))
+suppressWarnings(library(tseries))
+suppressWarnings(library(ggfortify))
+
+
+# Importar archivos
+
+
+
+```
+
+# Algunas medidas remediales en  la RLM.
+
+El presente laboratorio se centra en presentar los modelos binomiales en la regresión.
+
+Veremos sobre las  regresiones dicotómicas pertenencientes a la familia de los GLM:
+
+- Modelos dicotómicos
+- La logit
+- EL probit.
+- Una aplicación "rápida".
+- Un análisis más elaborado de un modelo dicotómico.
+
+## Modelos dicotómicos 
+
+Si en vez de una **variable continua** tenemos una **variable categórica**, y esa desea ser explicada por un conjunto de predictores o variables independienntes, podemos aplicar una regresión dicotómica. 
+
+Existen dos grandes tipos:
+
+- Logística
+- Probit
+
+## Datos
+
+- **Descripción:** registros con información de 79 muestras de orina con características físicas.
+- **Variables:** están registradas las siguientes variables:
+    - **`r`**: indicador de presencia de oxalato de calcio. <tred>(Variable Objetivo)</tred>
+        - **`0`:** ausencia de oxalato en orina.
+        - **`1`:** presencia de oxalato en orina.
+    - **`gravity`**: gravedad específica de la orina.
+    - **`ph`**: pH de la orina.
+    - **`osmo`**: osmolaridad de la orina.
+    - **`cond`**: conductivicad de la orina.
+    - **`urea`**: concentración de urea en la orina.
+    - **`calc`**: concentración de calcio (milimoles por litro).
+- **Problema:** determinar si una o más características físicas de la orina están relacionadas con la presencia de oxalatos. Además, generar un modelo capaz de clasificar pacientes con presencia de cristales que podrían ser causantes de patologías (cálculos renales).
+
+```{r}
+datos <- read.csv("G:/Cursos/ULACIT/Economía Empresarial/C - Microeconometría/Laboratorio/H. Modelos dicotómicos logit y probit/Orina.csv")
+
+# Conversión de variable objetivo a factor
+datos$r <- as.factor(datos$r)
+
+# Imprimiendo datos
+tail(datos)
+```
+
+
+## La regresión logística
+
+- La regresión logística analiza datos con [*distribución binomial*](https://en.wikipedia.org/wiki/Binomial_distribution) de la forma:
+
+$$Y_i \sim\ B(p_i,\ n_i),\ para\ i=1,...,m$$
+
+- En la expresión anterior $p_i$ hace referencia a la probabilidad de éxito (probabilidad de que ocurra el evento bajo estudio) y $n_i$ determina el número de ensayos tipo *Bernoulli*. El número de ensayos es conocido, sin embargo, la probabilidad del éxito se desconoce.
+- Se debe cumplir que la respuesta esté acotada entre 0 y 1, es decir, que el resultado siempre será positivo, además de ser inferior a 1.
+- El exponencial ($e$) de cualquier valor ($x$) es siempre positivo y, cualquier número divivido entre la cantidad más uno ($x+1$) siempre será menor que 1. Bajo estas dos premisas se puede expresar la siguiente probabilidad condicional (función logística):
+
+$$p(Y =1\ |\ X)=\frac{e^{(\beta_0+\beta_1x)}}{e^{(\beta_0+\beta_1x)}+1}$$
+
+- Para facilitar el cálculo escribimos $p(Y =1\ |\ X)$ como $p(X)$:
+
+$$p(X) = \frac{e^{(\beta_0+\beta_1x)}}{e^{(\beta_0+\beta_1x)}+1}\\
+p(e^{(\beta_0+\beta_1x)}+1) = e^{(\beta_0+\beta_1x)}\\
+p \times e^{(\beta_0+\beta_1x)}\ +\ p = e^{(\beta_0+\beta_1x)}\\
+p = e^{(\beta_0+\beta_1x)}\ -\ p \times e^{(\beta_0+\beta_1x)}\\
+p = e^{(\beta_0+\beta_1x)}(1-p)\\
+\frac{p}{1-p} = e^{(\beta_0+\beta_1x)}$$
+
+- Los *logits* (función de enlace) de las probabilidades binomiales desconocidas, es decir, los logaritmos de la [*razón de momios (odds ratio)*](https://es.wikipedia.org/wiki/Raz%C3%B3n_de_momios) son modelados como una función lineal de los $X_i$:
+
+$$ln(\frac{p}{1-p}) = \beta_0+\beta_1x$$
+
+- Esta función de enlace es conocida como *sigmoide* y limita su rango de probabilidades entre 0 y 1.
+
+
+## La regresión probit
+
+
+- La regresión probit permite analizar datos con respuesta ordinal o con *distribución binomial* (respuestas dicotómicas) de la forma:
+
+$$Y_i \sim\ B(p_i,\ n_i),\ para\ i=1,...,m$$
+
+- El marco conceptual del modelo probit puede ser expresado de la siguiente manera:
+
+$$p(Y = 1|X)=\ \Phi(X^{T}\beta)$$
+
+- Donde $p(Y = 1|X)$ denota la probabilidad, $\Phi$ es la función de distribución acumulativa de la distribución normal estándar y $\beta$ son los parámetros del modelo, estimados a través de máxima verosimilitud.
+- El modelo puede ser expresado de la siguiente manera: $Y = X^{T}\beta+\epsilon$, donde $\epsilon \sim N(0, 1)$.
+- Las funciones logística y probit difieren en la manera como definen la función de distribución, mientras que la primera utiliza la función logística la segunda hace uso de la función de distribución acumulada de la normal estándar. Ambas funciones pueden ser comparadas en la siguiente figura:
+
+### Estadísticos descripvitos
+
+```{r}
+library(tidyr)
+datos %>% 
+  gather(key = "variable", value = "valor", -r) %>% 
+  group_by(variable, r) %>% 
+  summarise(Promedio = round(mean(valor, na.rm = TRUE), digits = 2),
+            `D. Estándar` = round(sd(valor, na.rm = TRUE), digits = 2),
+            Mínimo = round(min(valor, na.rm = TRUE), digits = 2),
+            Máximo = round(max(valor, na.rm = TRUE), digits = 2),
+            Q1 = round(quantile(valor, prob = 0.25, na.rm = TRUE), digits = 2),
+            Q2 = round(quantile(valor, prob = 0.5, na.rm = TRUE), digits = 2),
+            Q3 = round(quantile(valor, prob = 0.75, na.rm = TRUE), digits = 2)) %>% 
+  rename(Oxalato = r, Variable = variable) %>% 
+  datatable()
+```
+
+## Análisis Exploratorio de los datos
+
+### Datos ausentes
+
+```{r, echo=TRUE}
+library(broom)
+tidy(apply(datos, MARGIN = 2, is.na)) %>% 
+  gather(key = "variable", value = "valor") %>% 
+  mutate(valor = as.numeric(valor))  %>% 
+  group_by(variable) %>% 
+  summarise(Total_NAs = sum(valor))
+```
+
+### Densidades
+
+```{r, fig.height=5}
+library(ggplot2)
+colores <- c("dodgerblue", "gray40")
+datos %>% 
+  rename(Oxalato = r) %>% 
+  gather(key = "variable", value = "valor", -Oxalato) %>% 
+  ggplot(data = ., aes(x = valor, fill = Oxalato)) +
+  facet_wrap(~variable, scales = "free") +
+  geom_density(alpha = 0.7) +
+  scale_fill_manual(values = colores) +
+  labs(x = "", y = "") +
+  theme_light() +
+  theme(legend.position = "bottom")
+```
+
+### Distribución condicional
+
+- Las densidades condicionales son gráficos exploratorios que permiten dilucidar cómo es la probabilidad de "éxito" o "fracaso" respecto a variables numéricas. Es posible evidenciar en qué puntos (valores de x) se maximiza la probabilidad de "éxito", que en este caso está ligado a la presencia (<tred>r = 1</tred>) de oxalatos en orina.
+
+```{r}
+par(mfrow = c(2, 3))
+cdplot(datos$r ~ datos$gravity, xlab = "Gravedad específica",
+       ylab = "Oxalato", col = colores)
+cdplot(datos$r ~ datos$ph, xlab = "pH",
+       ylab = "Oxalato", col = colores)
+cdplot(datos$r ~ datos$osmo, xlab = "Osmolaridad",
+       ylab = "Oxalato", col = colores)
+cdplot(datos$r ~ datos$cond, xlab = "Conductividad",
+       ylab = "Oxalato", col = colores)
+cdplot(datos$r ~ datos$urea, xlab = "Urea",
+       ylab = "Oxalato", col = colores)
+cdplot(datos$r ~ datos$calc, xlab = "Calcio",
+       ylab = "Oxalato", col = colores)
+```
+
+### Boxplot comparativo
+
+```{r, fig.height=5}
+datos %>% 
+  rename(Oxalato = r) %>% 
+  gather(key = "variable", value = "valor", -Oxalato) %>% 
+  ggplot(data = ., aes(x = Oxalato, y = valor, fill = Oxalato)) +
+  facet_wrap(~variable, scales = "free") +
+  geom_boxplot() +
+  scale_fill_manual(values = colores) +
+  labs(x = "", y = "") +
+  theme_light() +
+  theme(legend.position = "bottom")
+```
+
+
+## Estimación de los modelos
+
+
+```{r, echo=TRUE}
+# Modelos Lineales Generalizados
+mod_logit  <- glm(r ~ ., data = datos, family = binomial(link = "logit"))
+mod_probit <- glm(r ~ ., data = datos, family = binomial(link = "probit"))
+
+# -------- Validación LOOCV (Manual)
+out_logi_0.5 <- NULL
+out_prob_0.5 <- NULL
+for(i in 1:nrow(datos)){
+  out_logi_0.5[i] = predict(update(mod_logit, data = datos[-i, ]),
+                   newdata = datos[i,], type = "response")
+  out_prob_0.5[i] = predict(update(mod_probit, data = datos[-i, ]),
+                   newdata = datos[i,], type = "response")
+}
+
+# -------- Validación LOOCV (cv.glm())
+
+## Función de coste con cutoff = 0.5
+coste_0.5 <- function(r, pi = 0) mean(abs(r-pi)> 0.5)
+
+## LOOCV
+library(boot)
+cv_error_logi_0.5 <- cv.glm(data = datos %>% filter(!is.na(osmo) & !is.na(cond)),
+                        glmfit = mod_logit, cost = coste_0.5)
+cv_error_prob_0.5 <- cv.glm(data = datos %>% filter(!is.na(osmo) & !is.na(cond)),
+                        glmfit = mod_probit, cost = coste_0.5)
+```
+
+
+- <tred>**Observaciones:**</tred> la ejecución automática de *LOOCV* con la función `cv.glm()` requiere una función de coste para calcular el error. El objeto devuelto por la función del paquete `boot` almacena el error con el nombre `delta`; al restar 1 menos el error (delta) se obtendrá la precisión o *accuracy* del modelo, que es exactamente el mismo valor obtenido manualmente.
+  
+- **Función de coste:** en el código hay una función de coste o pérdida para el límite igual a 0.5. Esta función puede ser expresada de la siguiente manera: $error = \sum |r_i - p_i| > 0.5$. Donde $r_i$ es el i-ésimo valor real y $p_i$ es el i-ésimo valor predicho. En el siguiente código es posible evidenciar que se obtienen los mismos resultados de forma manual y con la función `cv.glm()`.
+
+## Finalidad 
+
+Los modelos dicotómicos también sirven para la predicción, y según cierta condición, brindarán una probabilidad (entre 0-1) sobre un evento que así se consulte a través del modelo estimado.
+
+
+## Una adaptación más completa de una regresión dicotómica
+
+https://www.cienciadedatos.net/documentos/27_regresion_logistica_simple_y_multiple.html#
+
+La Regresión Logística Simple, desarrollada por David Cox en 1958, es un método de regresión que permite estimar la probabilidad de una variable cualitativa binaria en función de una variable cuantitativa. Una de las principales aplicaciones de la regresión logística es la de clasificación binaria, en el que las observaciones se clasifican en un grupo u otro dependiendo del valor que tome la variable empleada como predictor. Por ejemplo, clasificar a un individuo desconocido como hombre o mujer en función del tamaño de la mandíbula.
+
+"Es importante tener en cuenta que, aunque la regresión logística permite clasificar, se trata de un modelo de regresión que modela el logaritmo de la probabilidad de pertenecer a cada grupo. La asignación final se hace en función de las probabilidades predichas."
+
+
+### ¿Por qué regresión logística y no lineal?
+
+Si una variable cualitativa con dos niveles se codifica como 1 y 0, matemáticamente es posible ajustar un modelo de regresión lineal por mínimos cuadrados β0+β1x. El problema de esta aproximación es que, al tratarse de una recta, para valores extremos del predictor, se obtienen valores de Y menores que 0 o mayores que 1, lo que entra en contradicción con el hecho de que las probabilidades siempre están dentro del rango [0,1].
+
+En el siguiente ejemplo se modela la probabilidad de fraude por impago (default) en función del balance de la cuenta bancaria (balance).
+
+
+```{r}
+library(tidyverse)
+library(ISLR)
+library(dplyr)
+
+
+datos <- Default
+
+datos <- datos %>%
+                      dplyr::select(default, balance) %>%
+                      dplyr::mutate(default = recode(default,
+                                 "No"  = 0,
+                                 "Yes" = 1))
+
+# Se recodifican los niveles No, Yes a 1 y 0
+
+head(datos)
+```
+
+
+```{r}
+# Ajuste de un modelo lineal por mínimos cuadrados.
+modelo_lineal <- lm(default ~ balance, data = datos)
+
+# Representación gráfica del modelo.
+ggplot(data = datos, aes(x = balance, y = default)) +
+  geom_point(aes(color = as.factor(default)), shape = 1) + 
+  geom_smooth(method = "lm", color = "gray20", se = FALSE) +
+  theme_bw()  +
+  labs(title = "Regresión lineal por mínimos cuadrados",
+       y = "Probabilidad default") +
+  theme(legend.position = "none")
+```
+
+
+Al tratarse de una recta, si por ejemplo, se predice la probabilidad de default para alguien que tiene un balance de 10000, el valor obtenido es mayor que 1.
+
+
+```{r}
+predict(object = modelo_lineal, newdata = data.frame(balance = 10000))
+```
+
+
+Para evitar estos problemas, la regresión logística transforma el valor devuelto por la regresión lineal (β0+β1X) empleando una función cuyo resultado está siempre comprendido entre 0 y 1. Existen varias funciones que cumplen esta descripción, una de las más utilizadas es la función logística (también conocida como función sigmoide):
+
+función sigmoide=σ(x)=11+e−x(1)
+Para valores de x muy grandes positivos, el valor de e−x es aproximadamente 0 por lo que el valor de la función sigmoide es 1. Para valores de x muy grandes negativos, el valor e−x tiende a infinito por lo que el valor de la función sigmoide es 0.
+
+Sustituyendo la x de la ecuación 1 por la función lineal (β0+β1X) se obtiene que:
+
+P(Y=k|X=x)=11+e−(β0+β1X)=
+
+1eβ0+β1Xeβ0+β1X+1eβ0+β1X=
+
+11+eβ0+β1Xeβ0+β1X=
+
+eβ0+β1X1+eβ0+β1X
+donde Pr(Y=k|X=x) puede interpretarse como: la probabilidad de que la variable cualitativa Y adquiera el valor k (el nivel de referencia, codificado como 1), dado que el predictor X tiene el valor x.
+
+Esta función, puede ajustarse de forma sencilla con métodos de regresión lineal si se emplea su versión logarítmica, obteniendo lo que se conoce como LOG of ODDs.
+
+
+ln(p(Y=k|X=x)1−p(Y=k|X=x))=β0+β1X
+
+```{r}
+# Ajuste de un modelo logístico.
+modelo_logistico <- glm(default ~ balance, data = datos, family = "binomial")
+
+# Representación gráfica del modelo.
+ggplot(data = datos, aes(x = balance, y = default)) +
+  geom_point(aes(color = as.factor(default)), shape = 1) + 
+  stat_function(fun = function(x){predict(modelo_logistico,
+                                          newdata = data.frame(balance = x),
+                                          type = "response")}) +
+  theme_bw() +
+  labs(title = "Regresión logística",
+       y = "Probabilidad default") +
+  theme(legend.position = "none")
+```
+
+
+```{r}
+# Con geom_smooth se puede obtener el gráfico directamente.
+ggplot(data = datos, aes(x = balance, y = default)) +
+  geom_point(aes(color = as.factor(default)), shape = 1) + 
+  geom_smooth(method = "glm",
+              method.args = list(family = "binomial"),
+              color = "gray20",
+              se = FALSE) +
+  theme_bw() +
+  theme(legend.position = "none")
+```
+
+### Concepto de ODDS o razón de probabilidad, ratio de ODDS y logaritmo de ODDS
+
+En la regresión lineal simple, se modela el valor de la variable dependiente Y en función del valor de la variable independiente X. Sin embargo, en la regresión logística, tal como se ha descrito en la sección anterior, se modela la probabilidad de que la variable respuesta Y pertenezca al nivel de referencia 1 en función del valor que adquieran los predictores, mediante el uso de LOG of ODDs.
+
+Supóngase que la probabilidad de que un evento sea verdadero es de 0.8, por lo que la probabilidad de evento falso es de 1 - 0.8 = 0.2. Los ODDs o razón de probabilidad de verdadero se definen como el ratio entre la probabilidad de evento verdadero y la probabilidad de evento falso pq. En este caso los ODDs de verdadero son 0.8 / 0.2 = 4, lo que equivale a decir que se esperan 4 eventos verdaderos por cada evento falso.
+
+La trasformación de probabilidades a ODDs es monotónica, si la probabilidad aumenta también lo hacen los ODDs, y viceversa. El rango de valores que pueden tomar los ODDs es de [0,∞]. Dado que el valor de una probabilidad está acotado entre [0,1] se recurre a una trasformación logit (existen otras) que consiste en el logaritmo natural de los ODDs. Esto permite convertir el rango de probabilidad previamente limitado a [0,1] a [−∞,+∞].
+
+
+
+p             |      odss      | Log(odds)
+------------- | -------------  | -------------   
+0.001         |   0.001001	   |  -6.906755
+0.01          |   0.010101     |  -4.59512  
+0.2	          |   0.25	       |  -1.386294 
+0.3	          |   0.4285714    |  -0.8472978
+0.4	          |   0.6666667    |  -0.4054651  
+0.5           |   1            |  	0
+0.6	          |   1.5	         |   0.4054651
+0.7	          |   2.333333	   |  0.8472978  
+0.8	          |   4	           |   1.386294
+0.9	          |   9	           |   2.197225
+0.999         |  	999	         |   6.906755
+0.9999        |  	9999         |    9.21024
+-----------------------------------------------
+
+
+Los ODDs y el logaritmo de ODDs cumplen que:
+
+Si p(verdadero) = p(falso), entonces odds(verdadero) = 1
+Si p(verdadero) < p(falso), entonces odds(verdadero) < 1
+Si p(verdadero) > p(falso), entonces odds(verdadero) > 1
+A diferencia de la probabilidad que no puede exceder el 1, los ODDs no tienen límite superior.
+Si odds(verdadero) = 1, entonces logit(p) = 0
+Si odds(verdadero) < 1, entonces logit(p) < 0
+Si odds(verdadero) > 1, entonces logit(p) > 0
+La transformación logit no existe para p = 0
+
+### Ajuste del modelo
+
+Una vez obtenida la relación lineal entre el logaritmo de los ODDs y la variable predictora X, se tienen que estimar los parámetros β0 y β1. La combinación óptima de valores será aquella que tenga la máxima verosimilitud (maximum likelihood ML), es decir el valor de los parámetros β0 y β1 con los que se maximiza la probabilidad de obtener los datos observados.
+
+El método de maximum likelihood está ampliamente extendido en la estadística aunque su implementación no siempre es trivial. En el este enlace se puede obtener una descripción detallada de cómo encontrar los valores β0 y β1 de máxima verosimilitud empleando el método de Newton.
+
+Otra forma para ajustar un modelo de regresión logística es empleando descenso de gradiente. Si bien este no es el método de optimización más adecuado para resolver la regresión logística, está muy extendido en el ámbito del machine learning para ajustar otros modelos.
+
+
+### Evaluación del modelo
+
+Existen diferentes técnicas estadísticas para calcular la significancia de un modelo logístico en su conjunto (p-value del modelo). Todos ellos consideran que el modelo es útil si es capaz de mostrar una mejora respecto a lo que se conoce como modelo nulo, el modelo sin predictores, solo con β0. Dos de los más empleados son:
+
+Wald chi-square: está muy expandido pero pierde precisión con tamaños muestrales pequeños.
+
+Likelihood ratio: usa la diferencia entre la probabilidad de obtener los valores observados con el modelo logístico creado y las probabilidades de hacerlo con un modelo sin relación entre las variables. Para ello, calcula la significancia de la diferencia de residuos entre el modelo con predictores y el modelo nulo (modelo sin predictores). El estadístico tiene una distribución chi-cuadrado con grados de libertad equivalentes a la diferencia de grados de libertad de los dos modelos comparados. Si se compara respecto al modelo nulo, los grados de libertad equivalen al número de predictores del modelo generado. En el libro Handbook for biological statistics se recomienda usar este.
+
+Para determinar la significancia individual de cada uno de los predictores introducidos en un modelo de regresión logística se emplea el estadístico Z y el test Wald chi-test. En R, este es el método utilizado para calcular los p-values que se muestran al hacer summary() del modelo.
+
+### Interpretación del modelo
+
+A diferencia de la regresión lineal, en la que β1 se corresponde con el cambio promedio en la variable dependiente Y debido al incremento en una unidad del predictor X, en regresión logística, β1 indica el cambio en el logaritmo de ODDs debido al incremento de una unidad de X, o lo que es lo mismo, multiplica los ODDs por eβ1. Dado que la relación entre p(Y) y X no es lineal, β1 no se corresponde con el cambio en la probabilidad de Y asociada con el incremento de una unidad de X. Cuánto se incremente la probabilidad de Y por unidad de X depende del valor de X, es decir, de la posición en la curva logística en la que se encuentre.
+
+### Condiciones
+
+Independencia: las observaciones tienen que ser independientes unas de otras.
+
+Relación lineal entre el logaritmo natural de odds y la variable continua: patrones en forma de U son una clara violación de esta condición.
+
+La regresión logística no precisa de una distribución normal de la variable continua independiente.
+
+Número de observaciones: no existe una norma establecida al respecto, pero se recomienda entre 50 a 100 observaciones.
+
+### Predicciones
+
+Una vez estimados los coeficientes del modelo logístico, es posible conocer la probabilidad de que la variable dependiente pertenezca al nivel de referencia, dado un determinado valor del predictor. Para ello se emplea la ecuación del modelo:
+
+p^(Y=1|X)=(eβ0^+β1^X) / (1+eβ0^+β1^X)
+
+Más adelante en este documento, se emplea la función glm() con family="binomial" para ajustar modelos de regresión logística. Esta función predice por defecto el log(ODDs) de la variable respuesta. Para obtener las probabilidades P(y=1) hay que aplicar la ecuación (2), donde el valor eβ0^+β1^X es el log(ODDs) devuelto por el modelo. Otra opción es indicar el argumento type="response" en la función predict().
+
+
+### Convertir probabilidad en clasificación
+
+
+
+Una de las principales aplicaciones de un modelo de regresión logística es clasificar la variable cualitativa en función de valor que tome el predictor. Para conseguir esta clasificación, es necesario establecer un threshold o umbral de probabilidad a partir de la cual se considera que la variable pertenece a uno de los niveles. Por ejemplo, se puede asignar una observación al grupo 1 si p^(Y=1|X)>0.5 y al grupo 0 si de lo contrario.
+
+
+
+### Ejemplo
+
+
+Un estudio quiere establecer un modelo que permita calcular la probabilidad de obtener una matrícula de honor al final del bachillerato en función de la nota que se ha obtenido en matemáticas. La variable matrícula está codificada como 0 si no se tiene matrícula y 1 si se tiene.
+
+```{r}
+matricula <- as.factor(c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1,
+                         0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1,
+                         0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0,
+                         0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+                         1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0,
+                         1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1,
+                         1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1,
+                         0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+                         0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0,
+                         0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0,
+                         0, 0, 0, 0, 1, 0, 0, 0, 1, 1))
+matematicas <- c(41, 53, 54, 47, 57, 51, 42, 45, 54, 52, 51, 51, 71, 57, 50, 43,
+                 51, 60, 62, 57, 35, 75, 45, 57, 45, 46, 66, 57, 49, 49, 57, 64,
+                 63, 57, 50, 58, 75, 68, 44, 40, 41, 62, 57, 43, 48, 63, 39, 70,
+                 63, 59, 61, 38, 61, 49, 73, 44, 42, 39, 55, 52, 45, 61, 39, 41,
+                 50, 40, 60, 47, 59, 49, 46, 58, 71, 58, 46, 43, 54, 56, 46, 54,
+                 57, 54, 71, 48, 40, 64, 51, 39, 40, 61, 66, 49, 65, 52, 46, 61,
+                 72, 71, 40, 69, 64, 56, 49, 54, 53, 66, 67, 40, 46, 69, 40, 41,
+                 57, 58, 57, 37, 55, 62, 64, 40, 50, 46, 53, 52, 45, 56, 45, 54,
+                 56, 41, 54, 72, 56, 47, 49, 60, 54, 55, 33, 49, 43, 50, 52, 48,
+                 58, 43, 41, 43, 46, 44, 43, 61, 40, 49, 56, 61, 50, 51, 42, 67,
+                 53, 50, 51, 72, 48, 40, 53, 39, 63, 51, 45, 39, 42, 62, 44, 65,
+                 63, 54, 45, 60, 49, 48, 57, 55, 66, 64, 55, 42, 56, 53, 41, 42,
+                 53, 42, 60, 52, 38, 57, 58, 65)
+datos <- data.frame(matricula, matematicas)
+head(datos, 4)
+```
+
+### Representación de las observaciones
+
+Representar las observaciones es útil para intuir si la variable independiente escogida está relacionada con la variable respuesta y, por lo tanto, puede ser un buen predictor.
+
+```{r}
+library(ggplot2)
+table(datos$matricula)
+```
+
+```{r}
+ggplot(data = datos, aes(x = matricula, y = matematicas, color = matricula)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.1) +
+  theme_bw() +
+  theme(legend.position = "null")
+```
+
+Parece existir una diferencia entre la nota de las personas con matrícula y sin matrícula.
+
+### Generar el modelo de regresión logística
+
+El modelo se estimación como sigue 
+
+```{r}
+modelo <- glm(matricula ~ matematicas, data = datos, family = "binomial")
+summary(modelo)
+```
+
+
+El coeficiente estimado para la intersección es el valor esperado del logaritmo de odds de que un estudiante obtenga matrícula teniendo un 0 en en matemáticas. Como es de esperar, los odds son muy bajos e−9.793942=5.579e−5, lo que se corresponde con una probabilidad de obtener matrícula de p=(e−9.793942)/(1+e−9.793942)=5.579e−5.
+
+Acorde al modelo, el logaritmo de los odds de que un estudiante tenga matrícula está positivamente relacionado con la puntuación obtenida en matemáticas (coeficiente de regresión = 0.1563404). Esto significa que, por cada unidad que se incrementa la variable matemáticas, se espera que el logaritmo de odds de la variable matrícula se incremente en promedio 0.1563404 unidades. Aplicando la inversa del logaritmo natural (e0.1563404=1.169) se obtiene que, por cada unidad que se incrementa la variable matemáticas, los odds de obtener matrícula se incremente en promedio 1.169 unidades. No hay que confundir esto último con que la probabilidad de matrícula se incremente un 1.169 %.
+
+A diferencia de la regresión lineal en la que β1 se corresponde con el cambio promedio en la variable dependiente Y debido al incremento en una unidad del predictor X, en regresión logística, β1 indica el cambio en el logaritmo de odds debido al incremento de una unidad de X, o lo que es lo mismo, multiplica los odds por eβ1. Dado que la relación entre p(Y) y X no es lineal, β1 no se corresponde con el cambio en la probabilidad de Y asociado con el incremento de una unidad de X. Cuánto se incremente la probabilidad de Y por unidad de X depende del valor de X, es decir, de la posición en la curva logística en la que se encuentre.
+
+Además del valor de las estimaciones de los coeficientes parciales de correlación del modelo, es conveniente calcular sus correspondientes intervalos de confianza. En el caso de regresión logística, estos intervalos suelen calcularse empleando el método de profile likelihood (en R es el método por defecto si se tiene instalado el paquete MASS). Para una descripción más detallada ver: http://www.math.umt.edu/patterson/ProfileLikelihoodCI.pdf
+
+
+```{r}
+confint(object = modelo, level = 0.95 )
+```
+
+### Gráfico del modelo
+
+Dado que un modelo logístico modela el logaritmo de ODDs, estas son las unidades en las que se devuelven las predicciones. Es necesario convertirlas de nuevo en probabilidad mediante la función logit. En R, la función predict() puede devolver directamente las probabilidades en lugar de los logODDs si se indica el argumento type="response". Sin embargo, si se quieren calcular intervalos de confianza y que estos no se salgan del rango [0, 1] es necesario emplear los logODDs y una vez que se les ha sustraído o sumado el margen de error (Z x SE) se transforman en probabilidades.
+
+```{r}
+# MEDIANTE BASE GRAPHICS SIN INTERVALOS DE CONFIANZA
+
+# Codificación 0,1 de la variable respuesta
+datos$matricula <- as.character(datos$matricula)
+datos$matricula <- as.numeric(datos$matricula)
+
+plot(matricula ~ matematicas, datos, col = "darkblue",
+     main = "Modelo regresión logística",
+     ylab = "P(matrícula=1|matemáticas)",
+     xlab = "matemáticas", pch = "I")
+
+# type = "response" devuelve las predicciones en forma de probabilidad en lugar de en log_ODDs
+curve(predict(modelo, data.frame(matematicas = x), type = "response"),
+      col = "firebrick", lwd = 2.5, add = TRUE)
+```
+
+Veamos el siguiente:
+
+```{r}
+# MEDIANTE GGPLOT2 INCLUYENDO INTERVALOS DE CONFIANZA
+
+datos$matricula <- as.character(datos$matricula)
+datos$matricula <- as.numeric(datos$matricula)
+
+# Se crea un vector con nuevos valores interpolados en el rango de observaciones.
+nuevos_puntos <- seq(from = min(datos$matematicas), to = max(datos$matematicas),
+                     by = 0.5)
+
+
+# Predicciones de los nuevos puntos según el modelo. 
+# Si se indica se.fit = TRUE se devuelve el error estándar de cada predicción
+# junto con el valor de la predicción (fit).
+predicciones <- predict(modelo, data.frame(matematicas = nuevos_puntos),
+                        se.fit = TRUE)
+
+# Mediante la función logit se transforman los log_ODDs a probabilidades.
+predicciones_logit <- exp(predicciones$fit) / (1 + exp(predicciones$fit))
+
+# Se calcula el límite inferior y superior del IC del 95% sustrayendo e
+# incrementando el logODDs de cada predicción 1.95*SE. Una vez calculados los
+# logODDs del intervalo se transforman en probabilidades con la función logit.
+limite_inferior       <- predicciones$fit - 1.96 * predicciones$se.fit
+limite_inferior_logit <- exp(limite_inferior) / (1 + exp(limite_inferior))
+limite_superior       <- predicciones$fit + 1.96 * predicciones$se.fit
+limite_superior_logit <- exp(limite_superior) / (1 + exp(limite_superior))
+
+# Se crea un dataframe con los nuevos puntos y sus predicciones
+datos_curva <- data.frame(matematicas = nuevos_puntos,
+                          probabilidad_matricula = predicciones_logit,
+                          limite_inferior_logit = limite_inferior_logit, 
+                          limite_superior_logit = limite_superior_logit)
+
+ggplot(datos, aes(x = matematicas, y = matricula)) +
+      geom_point(aes(color = as.factor(matricula)), shape = "I", size = 3) + 
+      geom_line(data = datos_curva, aes(y = probabilidad_matricula),
+                color = "firebrick") + 
+      geom_line(data = datos_curva, aes(y = limite_inferior_logit),
+                linetype = "dashed") + 
+      geom_line(data = datos_curva, aes(y = limite_superior_logit),
+                linetype = "dashed") + 
+      theme_bw() +
+      labs(title = "Modelo regresión logística matrícula ~ nota matemáticas",
+           y = "P(matrícula = 1 | matemáticas)", y = "matemáticas") + 
+      theme(legend.position = "null") +
+      theme(plot.title = element_text(size = 10))
+```
+
+### Evaluación del modelo
+
+A la hora de evaluar la validez y calidad de un modelo de regresión logística, se analiza tanto el modelo en su conjunto como los predictores que lo forman.
+
+Se considera que el modelo es útil si es capaz de mostrar una mejora explicando las observaciones respecto al modelo nulo (sin predictores). El test Likelihood ratio calcula la significancia de la diferencia de residuos entre el modelo de interés y el modelo nulo. El estadístico sigue una distribución chi-cuadrado con grados de libertad equivalentes a la diferencia de grados de libertad de los dos modelos.
+
+```{r}
+# Diferencia de residuos
+# En R, un objeto glm almacena la "deviance" del modelo, así como la "deviance"
+# del modelo nulo. 
+dif_residuos <- modelo$null.deviance - modelo$deviance
+
+# Grados libertad
+df <- modelo$df.null - modelo$df.residual
+
+# p-value
+p_value <- pchisq(q = dif_residuos,df = df, lower.tail = FALSE)
+
+paste("Diferencia de residuos:", round(dif_residuos, 4))
+```
+
+```{r}
+paste("Grados de libertad:", df)
+paste("p-value:", p_value)
+```
+
+ El mismo cálculo se puede obtener directamente con:
+
+```{r}
+anova(modelo, test = "Chisq")
+```
+
+En este caso, el modelo obtenido sí es significativo.
+
+Para determinar si los predictores introducidos en un modelo de regresión logística contribuyen de forma significativa se emplea el estadístico Z y el test Wald chi-test. Este es el método utilizado para calcular los p-values que se muestran al hacer summary() del modelo. El predictor matemáticas sí contribuye de forma significativa (p-value = 1.03e-09).
+
+A diferencia de los modelos de regresión lineal, en los modelos logísticos no existe un equivalente a R2 que determine exactamente la varianza explicada por el modelo. Se han desarrollado diferentes métodos conocidos como pseudoR2 que intentan aproximarse al concepto de R2 pero que, aunque su rango oscila entre 0 y 1, no se pueden considerar equivalentes.
+
+McFadden’s: R2McF=1–lnL^(modelo)lnL^(modelo nulo), siendo L^ el valor de likelihood de cada modelo. La idea de esta fórmula es que, ln(L^), tiene un significado análogo a la suma de cuadrados de la regresión lineal. De ahí que se le denomine pseudoR2.
+
+Otra opción bastante extendida es el test de Hosmer-Lemeshow. Este test examina mediante un Pearson chi-square test si las proporciones de eventos observados son similares a las probabilidades predichas por el modelo, haciendo subgrupos.
+
+### Comparación de clasificación predicha y observaciones
+
+Para este estudio se va a emplear un threshold de 0.5. Si la probabilidad de que la variable adquiera el valor 1 (matrícula) es superior a 0.5, se asigna a este nivel, si es menor se asigna al 0 (no matrícula).
+
+```{r}
+library(vcd)
+predicciones <- ifelse(test = modelo$fitted.values > 0.5, yes = 1, no = 0)
+matriz_confusion <- table(modelo$model$matricula, predicciones,
+                          dnn = c("observaciones", "predicciones"))
+matriz_confusion
+```
+
+
+Veamos una representación gráfica.
+
+```{r}
+mosaic(matriz_confusion, shade = T, colorize = T,
+       gp = gpar(fill = matrix(c("green3", "red2", "red2", "green3"), 2, 2)))
+```
+
+
+El modelo es capaz de clasificar correctamente (140+22)/(140+22+27+11)=0.81(81%) de las observaciones cuando se emplean los datos de entrenamiento. No hay que olvidar que este es el error de entrenamiento, por lo que no es generalizable a nuevas observaciones. Para obtener una estimación más realista hay que calcular el error de test.
+
+
+### Conclusión
+
+El modelo logístico creado para predecir la probabilidad de que un alumno obtenga matrícula de honor a partir de la nota de matemáticas es en conjunto significativo acorde al Likelihood ratio (p-value = 8.717591e-14). El p-value del predictor matematicas es significativo (p-value = 1.03e-09).
+
+
+logit(matricula)=-9.793942 + 0.1563404*nota matematicas
+
+P(matricula)= (e-9.793942 + 0.1563404 * nota matematicas)/(1+e-9.793942 + 0.1563404 * nota matematicas)
+
+
+
+## Muchos más ejemplos :
+
+http://idaejin.github.io/courses/R/2019/euskaltel/regresion-logistica.html
